@@ -19,6 +19,7 @@
 
     <ItemGroup>
       <Compile Remove="Enums\**" />
+      <Compile Include="Enums\Enums.cs" />
     </ItemGroup>
 
     <ItemGroup>

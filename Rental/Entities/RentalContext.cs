@@ -13,6 +13,7 @@ public class RentalContext : DbContext
     public DbSet<User> Users { get; set; }
     public DbSet<Address> Addresses { get; set; }
     public DbSet<Genre> Genres { get; set; }
+    public DbSet<ItemGenre> ItemGenres { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -22,17 +23,20 @@ public class RentalContext : DbContext
             item.Property(x => x.Name).IsRequired();
             item.Property(x => x.Localization).IsRequired();
             item.Property(x => x.AgeRestriction).IsRequired();
+            item.Property(x => x.AgeRestriction).HasDefaultValue(Enums.Enums.AgeRestriction.None);
 
             item.Property(x => x.Localization).HasDefaultValue("Warehouse");
-            
+
             item.HasMany(x => x.Rentals).WithOne(x => x.Item).HasForeignKey(x => x.ItemId);
-            item.HasMany(x => x.Genre).WithMany(x => x.Affected).UsingEntity<ItemGenre>(
-                x => x.HasOne(x => x.Genre).WithMany().HasForeignKey(x => x.GenreId),
-                x => x.HasOne(x => x.Item).WithMany().HasForeignKey(x => x.ItemId),
+
+            item.HasMany(x => x.Genres).WithMany(x => x.Affected).UsingEntity<ItemGenre>(
+                x => x.HasOne(y => y.Genre).WithMany().HasForeignKey(y => y.GenreId),
+                x => x.HasOne(y => y.Item).WithMany().HasForeignKey(y => y.ItemId),
                 x =>
                 {
-                    x.HasKey(x => new { x.Genre, x.Item });
-                    x.Property(x => x.AddedDate).HasDefaultValueSql("GETDATE()");
+                    x.HasKey(y => new { y.GenreId, y.ItemId });
+                    x.Property(y => y.AddedDate).HasPrecision(0);
+                    x.Property(y => y.AddedDate).HasDefaultValueSql("CURRENT_TIMESTAMP");
                 }
             );
         });
@@ -42,7 +46,7 @@ public class RentalContext : DbContext
             game.Property(x => x.Studio).IsRequired();
             game.Property(x => x.AmountOfPlayers).IsRequired();
         });
-        
+
         modelBuilder.Entity<Book>(book =>
         {
             book.Property(x => x.Ean).IsRequired();
@@ -51,11 +55,11 @@ public class RentalContext : DbContext
 
         modelBuilder.Entity<Rental>(rental =>
         {
-            rental.Property(x => x.Who).IsRequired();
             rental.Property(x => x.RentDate).IsRequired();
             rental.Property(x => x.RentDurationDays).IsRequired();
 
-            rental.Property(x => x.RentDate).HasDefaultValueSql("NOW()");
+            rental.Property(x => x.RentDate).HasPrecision(0);
+            rental.Property(x => x.RentDate).HasDefaultValueSql("CURRENT_TIMESTAMP");
             rental.Property(x => x.RentDurationDays).HasDefaultValue(14);
         });
 
@@ -71,7 +75,15 @@ public class RentalContext : DbContext
         {
             user.HasOne(x => x.Address).WithOne(x => x.User).HasForeignKey<Address>(x => x.UserId);
             user.HasMany(x => x.Rentals).WithOne(x => x.Who).HasForeignKey(x => x.WhoId);
-        }); 
+        });
 
+
+        modelBuilder.Entity<Address>().HasData(
+            new Address{Id = 1, Street = "First Street", ZipCode = "90-999", City = "First City", Country = "First Country", UserId = 1}
+        );
+
+    modelBuilder.Entity<User>().HasData(
+            new User{Email = "tmp@tmp.com", FirstName = "First Name", LastName = "Last Name", Id = 1}
+            );
     }
 }
