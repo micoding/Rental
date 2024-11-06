@@ -1,11 +1,16 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Http.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Writers;
 using Rental.Entities;
+using Rental.Entities.Enums;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.Configure<JsonOptions>(options => options.SerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
 
 builder.Services.AddDbContext<RentalContext>(
     option => option.UseMySql(builder.Configuration.GetConnectionString("RentalConnectionString"), ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("RentalConnectionString")))
@@ -61,6 +66,19 @@ if (!users.Any())
     dbContext.Users.AddRange(user1, user2);
     dbContext.SaveChanges();
 }
+app.MapGet("getGenres", (RentalContext db) =>
+{
+    var genres = db.Genres.Include(x => x.Affected).ThenInclude(x => x.Genres).ToList();
+    
+    return genres;
+});
+
+app.MapGet("getItems", (RentalContext db) =>
+{
+    var items = db.Items.Include(x => x.Genres).ToList();
+    
+    return items;
+});
 
 app.MapGet("data", (RentalContext db) =>
 {
@@ -81,17 +99,20 @@ app.MapPost("update", async (RentalContext db) =>
 
 app.MapPost("create", async (RentalContext db) =>
 {
-    User user = new User()
+    Item item = new Book()
     {
-        FirstName = "Pan",
-        LastName = "Banan",
-        Email = "admin@admin.com",
+        Name = "Book 1",
+        Author = "Author 1",
+        AgeRestriction = Enums.AgeRestriction.None,
+        Localization = "Main",
+        Ean = "0000",
+        Genres = new List<Genre>{await db.Genres.FirstAsync(x => x.Name == "Action")}
     };
 
-    await db.AddAsync(user);
+    await db.AddAsync(item);
 
     await db.SaveChangesAsync();
-    return user;
+    return item;
 });
 
 app.Run();
